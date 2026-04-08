@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BiblioIA - Recuperación de Artículos</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f5f5f0;
+    color: #1a1a1a;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: #fff;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 17px;
+    color: #0F6E56;
+    text-decoration: none;
+  }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #1D9E75, #0F6E56);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(29,158,117,0.3);
+  }
+
+  .logo-icon svg { width: 18px; height: 18px; stroke: white; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+
+  .api-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #FFF3CD;
+    color: #856404;
+    border: 1px solid #FFE083;
+    cursor: pointer;
+  }
+  .api-badge.connected { background: #D1FAE5; color: #065F46; border-color: #6EE7B7; cursor: default; }
+  .api-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .tabs {
+    display: flex;
+    background: #f0f0ea;
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .tab {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: #666;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .tab:hover { color: #1a1a1a; }
+  .tab.active { background: #fff; color: #0F6E56; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+  /* ── LAYOUT ── */
+  .main { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 280px;
+    background: #fff;
+    border-right: 1px solid rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header { padding: 1rem; border-bottom: 1px solid rgba(0,0,0,0.07); }
+  .sidebar-title { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+
+  .upload-zone {
+    border: 2px dashed #C8E6C9;
+    border-radius: 10px;
+    padding: 14px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #F9FFFE;
+  }
+  .upload-zone:hover, .upload-zone.dragover { background: #E8F5E9; border-color: #1D9E75; }
+  .upload-zone .uz-icon { font-size: 22px; line-height: 1; margin-bottom: 6px; }
+  .upload-zone .uz-main { font-size: 13px; font-weight: 500; color: #0F6E56; }
+  .upload-zone .uz-sub { font-size: 11px; color: #999; margin-top: 3px; }
+
+  .search-wrap { padding: 10px 1rem; border-bottom: 1px solid rgba(0,0,0,0.07); }
+  .search-input {
+    width: 100%;
+    padding: 7px 10px 7px 32px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 7px;
+    font-size: 13px;
+    background: #f9f9f7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;
+    outline: none;
+    color: #1a1a1a;
+  }
+  .search-input:focus { border-color: #1D9E75; background-color: #fff; box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
+
+  .doc-list { flex: 1; overflow-y: auto; padding: 6px; }
+  .doc-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.1s;
+    margin-bottom: 2px;
+    border: 1px solid transparent;
+  }
+  .doc-item:hover { background: #f5f5f0; }
+  .doc-item.selected { background: #EDFAF5; border-color: #B2DFDB; }
+
+  .doc-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .doc-icon.pdf { background: #FEE2E2; }
+  .doc-icon.txt { background: #DBEAFE; }
+  .doc-icon.demo { background: #D1FAE5; }
+
+  .doc-info { flex: 1; min-width: 0; }
+  .doc-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1a1a1a; }
+  .doc-meta { font-size: 11px; color: #999; margin-top: 2px; }
+  .doc-check { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #ccc; flex-shrink: 0; margin-top: 5px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .doc-item.selected .doc-check { background: #1D9E75; border-color: #1D9E75; }
+  .doc-check::after { content: '✓'; font-size: 10px; color: white; display: none; }
+  .doc-item.selected .doc-check::after { display: block; }
+
+  .sidebar-footer { padding: 10px 1rem; border-top: 1px solid rgba(0,0,0,0.07); }
+  .sel-summary { font-size: 12px; color: #666; }
+  .sel-summary span { color: #0F6E56; font-weight: 600; }
+
+  input[type="file"] { display: none; }
+
+  /* ── CONTENT ── */
+  .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f8f8f5; }
+  .panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .panel.active { display: flex; }
+
+  /* ── CHAT ── */
+  .chat-context {
+    padding: 10px 1.25rem;
+    background: #fff;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 44px;
+  }
+  .context-label { font-size: 12px; color: #999; flex-shrink: 0; }
+  .context-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ctx-chip {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+    background: #D1FAE5;
+    color: #065F46;
+  }
+  .ctx-chip.none { background: #f0f0ea; color: #888; font-weight: 400; }
+
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .welcome {
+    margin: auto;
+    text-align: center;
+    max-width: 400px;
+    padding: 2rem;
+  }
+  .welcome-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #1D9E75, #0F6E56);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    box-shadow: 0 4px 12px rgba(29,158,117,0.3);
+  }
+  .welcome-icon svg { width: 28px; height: 28px; stroke: white; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .welcome h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #1a1a1a; }
+  .welcome p { font-size: 14px; color: #666; line-height: 1.6; }
+  .quick-q { display: flex; flex-direction: column; gap: 8px; margin-top: 1.25rem; }
+  .qq-btn {
+    padding: 9px 14px;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    background: #fff;
+    color: #444;
+    text-align: left;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .qq-btn:hover { background: #EDFAF5; border-color: #1D9E75; color: #0F6E56; }
+
+  .msg { display: flex; flex-direction: column; max-width: 700px; }
+  .msg.user { align-self: flex-end; align-items: flex-end; }
+  .msg.assistant { align-self: flex-start; align-items: flex-start; }
+
+  .msg-bubble {
+    padding: 11px 15px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .msg.user .msg-bubble {
+    background: linear-gradient(135deg, #1D9E75, #0F6E56);
+    color: white;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 2px 8px rgba(29,158,117,0.25);
+  }
+  .msg.assistant .msg-bubble {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .msg-meta { font-size: 11px; color: #bbb; margin-top: 4px; padding: 0 4px; }
+
+  .typing-wrap { align-self: flex-start; }
+  .typing {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 12px 16px;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 14px;
+    border-bottom-left-radius: 4px;
+  }
+  .typing-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #1D9E75;
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%,60%,100% { transform: translateY(0); opacity: 0.6; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  .suggestions { padding: 0 1.25rem 0.75rem; display: flex; gap: 8px; flex-wrap: wrap; }
+  .suggestion {
+    padding: 6px 13px;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 16px;
+    font-size: 12px;
+    cursor: pointer;
+    background: #fff;
+    color: #555;
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .suggestion:hover { border-color: #1D9E75; color: #0F6E56; background: #EDFAF5; }
+
+  .input-area {
+    padding: 10px 1.25rem 1rem;
+    background: #fff;
+    border-top: 1px solid rgba(0,0,0,0.08);
+  }
+  .input-row { display: flex; gap: 8px; align-items: flex-end; }
+  .chat-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1.5px solid rgba(0,0,0,0.15);
+    border-radius: 12px;
+    font-size: 14px;
+    resize: none;
+    min-height: 44px;
+    max-height: 120px;
+    line-height: 1.5;
+    background: #fff;
+    color: #1a1a1a;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .chat-input:focus { border-color: #1D9E75; box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
+  .send-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1D9E75, #0F6E56);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    box-shadow: 0 2px 6px rgba(29,158,117,0.3);
+  }
+  .send-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(29,158,117,0.4); }
+  .send-btn:active { transform: scale(0.97); }
+  .send-btn:disabled { background: #e0e0e0; box-shadow: none; cursor: default; transform: none; }
+  .send-btn svg { width: 18px; height: 18px; stroke: white; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── EXPLORE ── */
+  .explore-panel { overflow-y: auto; padding: 1.5rem 2rem; }
+  .explore-header { margin-bottom: 1.5rem; }
+  .explore-header h2 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .explore-header p { font-size: 14px; color: #666; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .stat-card {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .stat-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+  .stat-value { font-size: 28px; font-weight: 600; color: #0F6E56; }
+
+  .sec-title { font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+
+  .topic-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .topic-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    font-weight: 500;
+    border: none;
+  }
+  .topic-chip.active { background: #0F6E56; color: white; box-shadow: 0 2px 6px rgba(15,110,86,0.3); }
+  .topic-chip:not(.active) { background: #fff; border: 1px solid rgba(0,0,0,0.12); color: #555; }
+  .topic-chip:hover:not(.active) { border-color: #1D9E75; color: #0F6E56; }
+
+  .article-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .article-card {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 12px;
+    padding: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .article-card:hover { border-color: #1D9E75; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+  .article-tag {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .article-title { font-size: 14px; font-weight: 600; line-height: 1.4; margin-bottom: 7px; color: #1a1a1a; }
+  .article-excerpt { font-size: 13px; color: #666; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .article-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+  .article-size { font-size: 11px; color: #bbb; }
+  .article-cta { font-size: 12px; color: #0F6E56; font-weight: 500; }
+
+  .no-docs-msg { text-align: center; padding: 4rem 2rem; color: #888; }
+  .no-docs-msg h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; color: #555; }
+
+  /* ── MODAL API KEY ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.75rem;
+    width: 440px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .modal p { font-size: 14px; color: #666; margin-bottom: 1rem; line-height: 1.6; }
+  .modal label { font-size: 13px; font-weight: 500; color: #444; display: block; margin-bottom: 6px; }
+  .modal input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid rgba(0,0,0,0.15);
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    font-family: monospace;
+    margin-bottom: 12px;
+  }
+  .modal input:focus { border-color: #1D9E75; box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
+  .modal-note { font-size: 12px; color: #999; background: #f5f5f0; border-radius: 8px; padding: 10px 12px; line-height: 1.6; margin-bottom: 1rem; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn-cancel { padding: 9px 16px; border: 1px solid rgba(0,0,0,0.15); border-radius: 8px; font-size: 14px; cursor: pointer; background: transparent; color: #555; font-family: inherit; }
+  .btn-save { padding: 9px 20px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; background: #0F6E56; color: white; font-family: inherit; font-weight: 500; }
+  .btn-save:hover { background: #085041; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+</style>
+</head>
+<body>
+
+<!-- Modal API Key -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h2>🔑 Configurar API Key</h2>
+    <p>Para usar el asistente de IA, necesitas una clave de la API de Anthropic. Se guarda solo en tu navegador.</p>
+    <label>Tu API Key de Anthropic</label>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off">
+    <div class="modal-note">
+      📌 Obtén tu clave en <strong>console.anthropic.com</strong> → API Keys → Create Key.<br>
+      La clave se guarda en el almacenamiento local de tu navegador y nunca se envía a ningún servidor propio.
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveApiKey()">Guardar y continuar</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <header>
+    <a class="logo" href="#">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      BiblioIA
+    </a>
+
+    <div class="header-right">
+      <div class="api-badge" id="apiBadge" onclick="openModal()">
+        <span class="dot"></span>
+        <span id="apiStatus">Configurar API</span>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('chat')">Consultar</button>
+        <button class="tab" onclick="switchTab('explore')">Explorar</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Fuentes de información</div>
+        <div class="upload-zone" id="dropZone"
+          onclick="document.getElementById('fileInput').click()"
+          ondrop="handleDrop(event)"
+          ondragover="handleDragOver(event)"
+          ondragleave="handleDragLeave(event)">
+          <div class="uz-icon">📂</div>
+          <div class="uz-main">Agregar documentos</div>
+          <div class="uz-sub">PDF, TXT · arrastra o haz clic</div>
+        </div>
+        <input type="file" id="fileInput" multiple accept=".pdf,.txt,.md" onchange="handleFiles(event)">
+      </div>
+      <div class="search-wrap">
+        <input class="search-input" type="text" placeholder="Buscar fuentes..." oninput="filterDocs(this.value)" id="docSearch">
+      </div>
+      <div class="doc-list" id="docList"></div>
+      <div class="sidebar-footer">
+        <div class="sel-summary" id="selSummary">Selecciona las fuentes a consultar</div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- CHAT PANEL -->
+      <div class="panel active" id="chatPanel">
+        <div class="chat-context">
+          <span class="context-label">Consultando:</span>
+          <div class="context-chips" id="ctxChips">
+            <span class="ctx-chip none">Ninguna fuente seleccionada</span>
+          </div>
+        </div>
+        <div class="messages" id="messages">
+          <div class="welcome" id="welcome">
+            <div class="welcome-icon">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            </div>
+            <h3>Asistente de Biblioteca</h3>
+            <p>Selecciona artículos del panel izquierdo y hazme preguntas. Analizaré el contenido para responderte con precisión.</p>
+            <div class="quick-q">
+              <button class="qq-btn" onclick="sendSugg(this)">📋 ¿De qué trata este artículo?</button>
+              <button class="qq-btn" onclick="sendSugg(this)">🎯 ¿Cuáles son los puntos principales?</button>
+              <button class="qq-btn" onclick="sendSugg(this)">🔬 ¿Qué metodología utiliza?</button>
+              <button class="qq-btn" onclick="sendSugg(this)">✅ Dame las conclusiones del estudio</button>
+            </div>
+          </div>
+        </div>
+        <div class="suggestions" id="suggestionsBar">
+          <button class="suggestion" onclick="sendSugg(this)">Resumen ejecutivo</button>
+          <button class="suggestion" onclick="sendSugg(this)">Palabras clave</button>
+          <button class="suggestion" onclick="sendSugg(this)">Comparar fuentes</button>
+          <button class="suggestion" onclick="sendSugg(this)">Citar en APA</button>
+        </div>
+        <div class="input-area">
+          <div class="input-row">
+            <textarea class="chat-input" id="chatInput"
+              placeholder="Pregunta sobre el contenido de tus fuentes..."
+              rows="1"
+              onkeydown="handleKey(event)"
+              oninput="autoResize(this)"></textarea>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Enviar">
+              <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPLORE PANEL -->
+      <div class="panel explore-panel" id="explorePanel">
+        <div class="explore-header">
+          <h2>Colección de la biblioteca</h2>
+          <p>Navega, filtra y consulta los artículos disponibles</p>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">Artículos cargados</div><div class="stat-value" id="statDocs">0</div></div>
+          <div class="stat-card"><div class="stat-label">Consultas realizadas</div><div class="stat-value" id="statQueries">0</div></div>
+          <div class="stat-card"><div class="stat-label">Temas disponibles</div><div class="stat-value" id="statTopics">0</div></div>
+        </div>
+        <div class="sec-title">Filtrar por tema</div>
+        <div class="topic-chips" id="topicChips"></div>
+        <div class="sec-title">Artículos</div>
+        <div class="article-grid" id="articleGrid"></div>
+        <div id="noDocsMsg" class="no-docs-msg" style="display:none">
+          <h3>Sin artículos aún</h3>
+          <p>Carga documentos desde el panel izquierdo para comenzar.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── STATE ─── */
+let documents = [];
+let selectedIds = [];
+let conversation = [];
+let queryCount = 0;
+let filterTopic = null;
+let isLoading = false;
+let apiKey = localStorage.getItem('biblioia_api_key') || '';
+
+/* ─── DEMO DATA ─── */
+const DEMO = [
+  {
+    id:'d1', name:'IA en Educación - Revisión Sistemática.txt', type:'demo', size:'4 KB',
+    topic:'Educación', tag:{l:'Educación',bg:'#D1FAE5',c:'#065F46'},
+    excerpt:'Revisión de cómo los sistemas de tutoría inteligente mejoran los resultados académicos y personalizan el aprendizaje.',
+    content:`Título: Inteligencia Artificial en Educación: Una Revisión Sistemática
+Autores: García, M., López, R., Hernández, P.
+Año: 2023
+Institución: Universidad Nacional Autónoma de México
+
+RESUMEN
+La inteligencia artificial (IA) está transformando los sistemas educativos globalmente. Este artículo revisa 87 estudios publicados entre 2015-2023 sobre el impacto de la IA en los resultados educativos.
+
+INTRODUCCIÓN
+Los sistemas de tutoría inteligente (ITS) adaptan el contenido a las necesidades individuales. El aprendizaje adaptativo ha demostrado mejoras significativas en comprensión lectora, matemáticas y ciencias.
+
+METODOLOGÍA
+Revisión sistemática según protocolo PRISMA. Bases de datos: Scopus, Web of Science, ERIC. Criterios: estudios experimentales, cuasi-experimentales o meta-análisis con grupos de control. Período: 2015-2023. Idiomas: español, inglés, portugués.
+
+RESULTADOS
+- La IA mejora la retención del conocimiento hasta un 30% frente a métodos tradicionales
+- Los sistemas adaptativos reducen la brecha de aprendizaje entre estudiantes de diferentes niveles
+- La retroalimentación inmediata automatizada aumenta la motivación intrínseca
+- El 72% de los estudios reporta mejoras estadísticamente significativas
+- Mayor efectividad en matemáticas (d=0.68) que en humanidades (d=0.41)
+
+DISCUSIÓN
+Los beneficios incluyen: personalización del aprendizaje, accesibilidad 24/7, reducción de carga docente en tareas rutinarias. Los desafíos: brecha digital, privacidad de datos, necesidad de capacitación docente, sesgos algorítmicos.
+
+CONCLUSIONES
+La IA debe verse como herramienta complementaria, no sustituta del docente. Se recomienda inversión en infraestructura digital y formación docente continua. Las políticas educativas deben incorporar marcos éticos para el uso de IA.
+
+PALABRAS CLAVE: inteligencia artificial, educación, aprendizaje adaptativo, tutoría inteligente, tecnología educativa`
+  },
+  {
+    id:'d2', name:'Gestión Hídrica en América Latina.txt', type:'demo', size:'5 KB',
+    topic:'Medio Ambiente', tag:{l:'Medio Ambiente',bg:'#DCFCE7',c:'#14532D'},
+    excerpt:'Análisis de los retos y oportunidades en la gestión sostenible del agua en la región latinoamericana.',
+    content:`Título: Gestión Sostenible de Recursos Hídricos en América Latina: Desafíos y Perspectivas
+Autores: Rodríguez, C., Vargas, A., Montoya, J.
+Año: 2022
+Institución: CEPAL - Comisión Económica para América Latina
+
+RESUMEN
+América Latina posee el 31% de las reservas de agua dulce del planeta, pero su distribución desigual genera tensiones crecientes. Este estudio analiza los marcos de gestión en 8 países de la región.
+
+INTRODUCCIÓN
+Con una precipitación promedio de 1.600 mm/año, la región es privilegiada. Sin embargo, el 60% del agua dulce se concentra en la cuenca amazónica. Países como Chile, México y Perú enfrentan estrés hídrico severo en regiones costeras y andinas.
+
+METODOLOGÍA
+Estudio comparativo multi-caso. Análisis de políticas públicas en Brasil, Colombia, Chile, México, Perú, Bolivia, Argentina y Ecuador. Revisión de legislación hídrica, indicadores de cobertura y calidad (2010-2022). Entrevistas con 45 gestores de cuencas hidrográficas.
+
+RESULTADOS
+- El 34% de la población rural latinoamericana carece de acceso a agua potable segura
+- La contaminación por agroquímicos afecta al 67% de las cuencas monitoreadas
+- La deforestación ha reducido la recarga de acuíferos en un 22% en los últimos 20 años
+- Los modelos de gestión comunitaria tienen 3 veces más probabilidad de éxito a largo plazo
+- La gobernanza multi-nivel reduce conflictos hídricos en un 45%
+
+CASOS DE ÉXITO
+- Brasil: Sistema Nacional de Gerenciamento de Recursos Hídricos (SINGREH)
+- Colombia: Consejos de Cuenca con participación indígena
+- Chile: Reforma al Código de Aguas 2022
+
+CONCLUSIONES
+La gobernanza integrada y participativa es más efectiva que los modelos centralistas. Se requiere inversión en infraestructura de monitoreo, fortalecimiento institucional y reconocimiento de los derechos de agua de comunidades indígenas.
+
+PALABRAS CLAVE: recursos hídricos, gobernanza, América Latina, sostenibilidad, cuencas hidrográficas`
+  },
+  {
+    id:'d3', name:'Innovación en Sistemas de Salud Pública.txt', type:'demo', size:'6 KB',
+    topic:'Salud', tag:{l:'Salud',bg:'#EDE9FE',c:'#4C1D95'},
+    excerpt:'Innovaciones tecnológicas y organizacionales que mejoran la eficiencia de los sistemas de salud pública latinoamericanos.',
+    content:`Título: Innovación Digital en Sistemas de Salud Pública: Evidencias desde América Latina
+Autores: Medina, S., Torres, F., Castillo, R.
+Año: 2023
+Institución: Organización Panamericana de la Salud (OPS)
+
+RESUMEN
+Los sistemas de salud pública enfrentan presiones sin precedentes. Este estudio multicéntrico evalúa el impacto de innovaciones digitales en 12 sistemas de salud latinoamericanos entre 2018-2022.
+
+INTRODUCCIÓN
+El envejecimiento poblacional, las enfermedades crónicas y los recursos limitados obligan a una transformación del modelo asistencial. La pandemia de COVID-19 aceleró la adopción de soluciones digitales.
+
+METODOLOGÍA
+Estudio multicéntrico observacional. Países: Argentina, Brasil, Chile, Colombia, Costa Rica, México, Perú, Uruguay, Ecuador, Bolivia, Paraguay, Venezuela. Período: 2018-2022. Variables: cobertura, calidad de atención, eficiencia operativa, satisfacción del paciente y del personal. Muestra total: 2.4 millones de registros clínicos anonimizados.
+
+RESULTADOS
+1. Telemedicina: reducción del 40% en consultas presenciales innecesarias; 85% de satisfacción del paciente; ahorro promedio de $47 USD por consulta
+2. Registros Electrónicos de Salud (RES): reducción del 31% en errores de medicación; mejora del 28% en coordinación entre niveles de atención
+3. Aplicaciones mHealth: adherencia al tratamiento mejoró 38% en pacientes con diabetes tipo 2; reducción del 22% en hospitalizaciones evitables
+4. IA diagnóstica: precisión del 94% en detección temprana de retinopatía diabética; reducción del 60% en tiempo de diagnóstico
+
+RETORNO DE INVERSIÓN
+La inversión en salud digital tiene un ROI promedio de 3.5:1 en un horizonte de 5 años. Chile y Costa Rica presentan los mejores indicadores de adopción y resultado.
+
+BARRERAS
+- Infraestructura tecnológica insuficiente (especialmente zonas rurales)
+- Brecha generacional en personal de salud
+- Interoperabilidad entre sistemas
+- Marco regulatorio desactualizado
+
+CONCLUSIONES
+La digitalización de la salud es irreversible y beneficiosa. Se recomienda: inversión sostenida en infraestructura, capacitación del personal, marcos regulatorios actualizados y modelos de gobernanza de datos centrados en el paciente.
+
+PALABRAS CLAVE: telemedicina, salud digital, sistemas de salud, mHealth, inteligencia artificial médica`
+  },
+];
+
+/* ─── INIT ─── */
+function init() {
+  documents = [...DEMO];
+  selectedIds = documents.map(d => d.id);
+  updateApiBadge();
+  renderDocs();
+  updateContext();
+  updateExplore();
+}
+
+/* ─── API KEY ─── */
+function openModal() { document.getElementById('apiModal').classList.add('open'); document.getElementById('apiKeyInput').value = apiKey; }
+function closeModal() { document.getElementById('apiModal').classList.remove('open'); }
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val) { alert('Ingresa una API key válida'); return; }
+  apiKey = val;
+  localStorage.setItem('biblioia_api_key', val);
+  updateApiBadge();
+  closeModal();
+}
+function updateApiBadge() {
+  const badge = document.getElementById('apiBadge');
+  const status = document.getElementById('apiStatus');
+  if (apiKey) {
+    badge.className = 'api-badge connected';
+    status.textContent = 'API Conectada';
+    badge.onclick = () => openModal();
+  } else {
+    badge.className = 'api-badge';
+    status.textContent = 'Configurar API';
+    badge.onclick = () => openModal();
+  }
+}
+
+/* ─── DOCS ─── */
+function renderDocs(filter = '') {
+  const list = document.getElementById('docList');
+  const filtered = documents.filter(d => d.name.toLowerCase().includes(filter.toLowerCase()));
+  if (!filtered.length) { list.innerHTML = '<div style="padding:1.5rem;text-align:center;font-size:13px;color:#bbb">Sin resultados</div>'; return; }
+  list.innerHTML = filtered.map(d => `
+    <div class="doc-item ${selectedIds.includes(d.id)?'selected':''}" onclick="toggleDoc('${d.id}')">
+      <div class="doc-icon ${d.type}">${d.type==='pdf'?'📄':d.type==='txt'?'📝':'📚'}</div>
+      <div class="doc-info">
+        <div class="doc-name" title="${d.name}">${d.name}</div>
+        <div class="doc-meta">${d.size} · ${d.topic}</div>
+      </div>
+      <div class="doc-check"></div>
+    </div>
+  `).join('');
+  const n = selectedIds.length;
+  document.getElementById('selSummary').innerHTML = n ? `<span>${n}</span> fuente${n>1?'s':''} seleccionada${n>1?'s':''}` : 'Haz clic para seleccionar fuentes';
+}
+
+function toggleDoc(id) {
+  selectedIds = selectedIds.includes(id) ? selectedIds.filter(x=>x!==id) : [...selectedIds, id];
+  renderDocs(document.getElementById('docSearch').value);
+  updateContext();
+}
+
+function filterDocs(v) { renderDocs(v); }
+
+function handleFiles(e) { [...e.target.files].forEach(processFile); e.target.value=''; }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('dragover');
+  [...e.dataTransfer.files].forEach(processFile);
+}
+function handleDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('dragover'); }
+function handleDragLeave() { document.getElementById('dropZone').classList.remove('dragover'); }
+
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const content = e.target.result;
+    const topic = guessTopic(content + file.name);
+    const doc = {
+      id: 'u_'+Date.now()+'_'+Math.random().toString(36).substr(2,4),
+      name: file.name, type: file.name.endsWith('.pdf')?'pdf':'txt',
+      size: fmtSize(file.size), topic,
+      tag: getTag(topic),
+      content: content.substring(0, 10000),
+      excerpt: content.substring(0, 160) + '...'
+    };
+    documents.push(doc);
+    selectedIds.push(doc.id);
+    renderDocs();
+    updateContext();
+    updateExplore();
+  };
+  reader.readAsText(file);
+}
+
+const TOPIC_MAP = {
+  'Salud':['salud','medic','hospital','clínic','paciente','enfermed','doctor','nurse'],
+  'Educación':['educ','aprendiz','escuel','universidad','docente','alumno','pedagog','aula'],
+  'Medio Ambiente':['agua','ambient','ecolog','bosque','climat','sostenib','hídric','contamin'],
+  'Economía':['econom','financ','mercado','precio','PIB','inversión','banco','fiscal'],
+  'Tecnología':['tecnolog','digital','software','hardware','datos','algoritm','inteligencia','red'],
+};
+function guessTopic(text) {
+  const lower = text.toLowerCase();
+  let best = 'General'; let max = 0;
+  for (const [t, kws] of Object.entries(TOPIC_MAP)) {
+    const count = kws.filter(k => lower.includes(k)).length;
+    if (count > max) { max = count; best = t; }
+  }
+  return best;
+}
+
+const TAG_COLORS = {
+  'Salud':{bg:'#EDE9FE',c:'#4C1D95'},
+  'Educación':{bg:'#D1FAE5',c:'#065F46'},
+  'Medio Ambiente':{bg:'#DCFCE7',c:'#14532D'},
+  'Economía':{bg:'#FEF3C7',c:'#78350F'},
+  'Tecnología':{bg:'#DBEAFE',c:'#1E3A8A'},
+  'General':{bg:'#F3F4F6',c:'#374151'},
+};
+function getTag(t) { const r=TAG_COLORS[t]||TAG_COLORS.General; return {l:t,bg:r.bg,c:r.c}; }
+function fmtSize(b) { return b<1024?b+' B':b<1048576?Math.round(b/1024)+' KB':(b/1048576).toFixed(1)+' MB'; }
+
+/* ─── CONTEXT ─── */
+function updateContext() {
+  const chips = document.getElementById('ctxChips');
+  const active = documents.filter(d => selectedIds.includes(d.id));
+  if (!active.length) {
+    chips.innerHTML = '<span class="ctx-chip none">Ninguna fuente seleccionada</span>';
+  } else if (active.length <= 2) {
+    chips.innerHTML = active.map(d => `<span class="ctx-chip">${d.name.replace(/\.[^.]+$/,'')}</span>`).join('');
+  } else {
+    chips.innerHTML = `<span class="ctx-chip">${active.length} fuentes seleccionadas</span>`;
+  }
+}
+
+/* ─── EXPLORE ─── */
+function updateExplore() {
+  document.getElementById('statDocs').textContent = documents.length;
+  document.getElementById('statQueries').textContent = queryCount;
+  const topics = [...new Set(documents.map(d=>d.topic))];
+  document.getElementById('statTopics').textContent = topics.length;
+
+  const chips = document.getElementById('topicChips');
+  chips.innerHTML = ['Todos',...topics].map(t =>
+    `<button class="topic-chip ${(filterTopic===t||(t==='Todos'&&!filterTopic))?'active':''}" onclick="setFilter('${t}')">${t}</button>`
+  ).join('');
+
+  const grid = document.getElementById('articleGrid');
+  const noMsg = document.getElementById('noDocsMsg');
+  const list = filterTopic ? documents.filter(d=>d.topic===filterTopic) : documents;
+
+  if (!list.length) { grid.innerHTML=''; noMsg.style.display='block'; return; }
+  noMsg.style.display='none';
+  grid.innerHTML = list.map(d => `
+    <div class="article-card" onclick="openFromExplore('${d.id}')">
+      <span class="article-tag" style="background:${d.tag.bg};color:${d.tag.c}">${d.tag.l}</span>
+      <div class="article-title">${d.name.replace(/\.[^.]+$/, '')}</div>
+      <div class="article-excerpt">${d.excerpt||(d.content||'').substring(0,150)+'...'}</div>
+      <div class="article-footer">
+        <span class="article-size">${d.size}</span>
+        <span class="article-cta">Consultar →</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setFilter(t) { filterTopic=(t==='Todos'?null:t); updateExplore(); }
+function openFromExplore(id) {
+  selectedIds=[id]; renderDocs(); updateContext();
+  switchTab('chat');
+  setTimeout(()=>{ document.getElementById('chatInput').value='¿De qué trata este artículo?'; document.getElementById('chatInput').focus(); },150);
+}
+
+/* ─── TABS ─── */
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['chat','explore'][i]===t));
+  document.getElementById('chatPanel').classList.toggle('active', t==='chat');
+  document.getElementById('explorePanel').classList.toggle('active', t==='explore');
+  if(t==='explore') updateExplore();
+}
+
+/* ─── CHAT ─── */
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
+function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+function sendSugg(btn) {
+  const text = btn.textContent.replace(/^[^\w]+/,'').trim();
+  document.getElementById('chatInput').value = text;
+  sendMessage();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || isLoading) return;
+
+  if (!apiKey) { openModal(); return; }
+
+  const active = documents.filter(d=>selectedIds.includes(d.id));
+  if (!active.length) {
+    addMsg('assistant','⚠️ Selecciona al menos una fuente del panel izquierdo para comenzar la consulta.');
+    return;
+  }
+
+  input.value=''; input.style.height='auto';
+  addMsg('user', text);
+  conversation.push({role:'user',content:text});
+
+  const typingEl = showTyping();
+  isLoading=true;
+  document.getElementById('sendBtn').disabled=true;
+
+  const ctx = active.map(d=>`=== DOCUMENTO: ${d.name} ===\n${d.content||''}`).join('\n\n---\n\n');
+
+  const system = `Eres un asistente especializado de biblioteca. Responde ÚNICAMENTE basándote en los documentos proporcionados.
+
+DOCUMENTOS:
+${ctx}
+
+REGLAS:
+- Responde siempre en español
+- Cita el documento fuente entre paréntesis cuando sea relevante: (Fuente: nombre_del_documento)
+- Si la información solicitada no está en los documentos, indícalo claramente
+- Usa un tono académico y preciso
+- Para resúmenes: identifica título, autores, metodología, resultados y conclusiones
+- Para comparaciones entre varios documentos: usa una estructura clara con subtítulos
+- Sé conciso pero completo`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system,
+        messages:conversation.slice(-12)
+      })
+    });
+
+    typingEl.remove();
+
+    if (!res.ok) {
+      const err=await res.json().catch(()=>({}));
+      if(res.status===401) addMsg('assistant','❌ API key inválida. Haz clic en "API Conectada" arriba para actualizarla.');
+      else if(res.status===429) addMsg('assistant','⏳ Límite de solicitudes alcanzado. Espera un momento e intenta de nuevo.');
+      else addMsg('assistant',`Error ${res.status}: ${err.error?.message||'Error desconocido'}`);
+    } else {
+      const data=await res.json();
+      const reply=data.content?.[0]?.text||'Sin respuesta';
+      addMsg('assistant',reply);
+      conversation.push({role:'assistant',content:reply});
+      queryCount++;
+      document.getElementById('statQueries').textContent=queryCount;
+    }
+  } catch(e) {
+    typingEl.remove();
+    addMsg('assistant','❌ Error de conexión. Verifica tu acceso a internet.');
+  }
+
+  isLoading=false;
+  document.getElementById('sendBtn').disabled=false;
+}
+
+function addMsg(role, text) {
+  const msgs=document.getElementById('messages');
+  const welcome=document.getElementById('welcome');
+  if(welcome) welcome.remove();
+
+  const div=document.createElement('div');
+  div.className=`msg ${role}`;
+  const formatted=text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/\n/g,'<br>');
+  div.innerHTML=`
+    <div class="msg-bubble">${formatted}</div>
+    <div class="msg-meta">${role==='user'?'Tú':'BiblioIA'} · ${new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})}</div>
+  `;
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+  return div;
+}
+
+function showTyping() {
+  const msgs=document.getElementById('messages');
+  const div=document.createElement('div');
+  div.className='typing-wrap';
+  div.innerHTML=`<div class="typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+  return div;
+}
+
+/* ─── START ─── */
+init();
+</script>
+</body>
+</html>
